@@ -1,68 +1,130 @@
+const validUrl = require('valid-url')
+const shortid = require('shortid')
 const urlModel = require("../models/urlModel")
-const mongoose = require('mongoose')
-const shortid = require('shortid');
-const validUrl = require("valid-url");
 
+//===========================================Validation=========================================//
 
-const isValid = function (value) {
-    if (typeof value === 'undefined' || value === null) return false
-    if (typeof value === 'string' && value.trim().length === 0) return false
+const isValid=function(value){
+    if(typeof value === 'undefined' || value === null) return false
+    if(typeof value !== 'string' || value.trim().length === 0) return false
     return true;
+} 
+
+//============================================Url Api's=========================================//
+
+const createUrl = async function(req, res) {
+    try{
+        const data = req.body;
+        const baseUrl = 'http:localhost:3000/'
+
+    //Check if data is coming in request body
+    if(Object.keys(data).length == 0){
+       return res.status(400).send({
+        status: false, message: "Please Provide details"})
+    }
+    //check longUrl is present or not
+    if(!data.longUrl){
+     return res.status(400).send({
+       status: false, message: "longUrl is required"})
+    }
+    //check if longurl is in valid format
+    if(!isValid(data.longUrl)){
+        return res.status(400).send({
+        status: false, message: 'It can not be null or undefined'})
+     }   
+
+    // check if baseurl is not found
+    if(!validUrl.isUri(baseUrl)){
+        return res.status(400).send({
+           status: false, message: "baseurl not found"}) 
+    }
+    
+  // check long url is valid or not 
+  if (validUrl.isUri(data.longUrl)) {
+    let url = await urlModel.findOne({ longUrl: data.longUrl })
+    if (url) {
+        console.log("Already exists...");
+        return res.status(409).send({
+            status: false, message: "Already exists", data: url})
+  }
+   else {
+    let urlCode = shortid.generate().toLowerCase(); // generating the url code
+    //check if urlCode is present or not
+    if (!urlCode) {
+        console.log("urlCode is mandatory");
+        return res.status(409).send({
+            status: false, message: "urlCode is required"})
+  }
+   //check if urlCode is valid format or not
+   if(!isValid(urlCode)){
+    return res.status(400).send({
+    status: false, message: 'urlCode is not valid format'})
+}  
+// check if urlCode is present in database
+let checkedUrlCode = await urlModel.findOne({urlCode:urlCode}).select({_id:0, __v:0,createdAt: 0, updatedAt: 0 });
+if (checkedUrlCode) {
+    return res.status(400).send({status: false, message: "ShortUrl is not unique"})}
+
+let shortUrl = baseUrl + urlCode; // creating the short url 
+   //check if short url is present or not
+    if(!shortUrl){
+        return res.status(400).send({
+          status: false, message: "shorturl is required"})
+    }
+    //check if short id is in valid format
+    if(!isValid(shortUrl)){
+        return res.status(400).send({
+        status: false, message: 'shortUrl is not valid format'})
+    }  
+     data.urlCode = urlCode
+     data.shortUrl = shortUrl
+
+     //check if shorturl is present in database
+     let getShortUrl = await urlModel.findOne({shortUrl:shortUrl})
+     if (getShortUrl) {
+        return res.status(400).send({status: false, message: "ShortUrl is not unique"})}
+
+     //creating a document in database
+    let newUrl = await urlModel.create(data)
+    if(!newUrl){
+      return res.status(400).send({
+        status : false,message :" No data found due to invalid request"})
+  }
+     res.status(201).send({
+     status: true, message: "Data created successfully", data : newUrl})
+    }
+}
+}
+catch (err) {
+    console.error(err);
+    return res.status(500).send({
+      status: false, error: err.message});
+  }
 }
 
-const shortUrl = async function (req, res) {
-    try {
 
-        if (!Object.keys(req.body).length)return res.status(400).send({ status: false, message: "Please provide URL details" }); 
-        
-        if (!isValid(req.body.longUrl))return res.status(400).send({ status: false, message: "Please provide Long URL." });
-        
-        if (!/^(http(s)?:\/\/)?(www.)?([a-zA-Z0-9])+([\-\.]{1}[a-zA-Z0-9]+)*\.[a-zA-Z]{2,5}(:[0-9]{1,5})?(\/[^\s]*)?$/gm.test(req.body.longUrl.toString().trim())){ /*URL validation*/
-            return res.status(400).send({ status: false, message: "Please Provide a Valid Long URL." })}
+//==================================================get Url==========================================//
 
-        const checkLongUrl = await urlModel.findOne({ longUrl: req.body.longUrl }).select({ createdAt: 0, updatedAt: 0, __v: 0, _id: 0 });
-
-        if (checkLongUrl) {
-            
-         res.status(200).send({ status: true, message: `Short URL already generated for this longURL.`, data: checkLongUrl });
-        return
-    }
-        const shortCode = shortid.generate()
-        const baseUrl = "http://localhost:3000";
-        const shortUrl = baseUrl + "/" + shortCode;  
-
-        const ShortenUrl = await urlModel.create({ longUrl: req.body.longUrl , shortUrl: shortUrl, urlCode: shortCode, });
-        
-     
-
-        return res.status(201).send({ status: true, message: `Successfully Shorten the URL`, data: ShortenUrl, });
-
-    } catch (err) {
-        res.status(500).send({ status: false, error: err.message });
-    }
-}
-
-
-const originalUrl = async function (req, res) {
-
-    try {
-        
-       
+const getUrl = async function(req, res){
+    try{
+    const url = await urlModel.findOne({ urlCode: req.params.urlCode});
+      if (url) {
+          console.log("Redirecting to original url.....");
+          return res.status(302).redirect(url.longUrl);
+    } else {
+          return res.status(404).send({ message: "No url found" });
         }
-
-     catch (err) {
-        
-        res.status(500).send({ status: false, error: err.message });
     }
+    catch (err) {
+        console.error(err);
+        return res.status(500).send({
+          status : false, message: "Some error has occurred" });
+      }
 }
 
 
 
 
 
-
-
-
-
-
-module.exports = { shortUrl,originalUrl}
+module.exports.createUrl = createUrl
+module.exports.getUrl = getUrl
