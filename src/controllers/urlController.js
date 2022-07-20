@@ -35,13 +35,15 @@ const isValid=function(value){
 
 const createUrl = async function (req, res) {
     try {
-
+let data = req.body;
+let longUrl = data.longUrl
         if (!Object.keys(req.body).length)return res.status(400).send({ status: false, message: "Please provide URL details" }); 
         
         if (!isValid(req.body.longUrl))return res.status(400).send({ status: false, message: "Please provide Long URL." });
         
-        if (!/^(http(s)?:\/\/)?(www.)?([a-zA-Z0-9])+([\-\.]{1}[a-zA-Z0-9]+)*\.[a-zA-Z]{2,5}(:[0-9]{1,5})?(\/[^\s]*)?$/gm.test(req.body.longUrl.toString().trim())){ /*URL validation*/
-            return res.status(400).send({ status: false, message: "Please Provide a Valid Long URL." })}
+        if (!validUrl.isUri(longUrl)) {
+            return res.status(400).send({ status: false, message: "Please provide a valid Url" })
+        }
 
         const cachedlongUrl = await GET_ASYNC(`${req.body.longUrl}`); 
 
