@@ -51,7 +51,7 @@ let longUrl = data.longUrl
 
         if (parsedUrl) return res.status(200).send(parsedUrl);       /*Checking Data From Cache */
         
-        const checkLongUrl = await urlModel.findOne({ longUrl: req.body.longUrl }).select({ createdAt: 0, updatedAt: 0, __v: 0, _id: 0 }); /*Checking Data From urlModel */
+        const checkLongUrl = await urlModel.findOne({ longUrl: req.body.longUrl }).select({ urlCode: 1, longUrl: 1, shortUrl: 1, _id: 0 }); /*Checking Data From urlModel */
 
         if (checkLongUrl) {
             
@@ -59,15 +59,25 @@ let longUrl = data.longUrl
         return
     }
 
-        const shortCode = shortid.generate()
+        const urlCode = shortid.generate()
         const baseUrl = "http://localhost:3000";
-        const shortUrl = baseUrl + "/" + shortCode;  /*Concat base baseURL & URLcode*/
+        const shortUrl = baseUrl + "/" + urlCode;  /*Concat base baseURL & URLcode*/
+        let collection = {
+          urlCode: urlCode,
+          longUrl: longUrl,
+          shortUrl: shortUrl
+      }
 
-        const ShortenUrl = await urlModel.create({ longUrl: req.body.longUrl , shortUrl: shortUrl, urlCode: shortCode, });
+        const ShortenUrl = await urlModel.create(collection);
+        let result = {
+          urlCode: ShortenUrl.urlCode,
+          longUrl: ShortenUrl.longUrl,
+          shortUrl: ShortenUrl.shortUrl
+      }
         
-        await SET_ASYNC(`${req.body.longUrl}`, JSON.stringify(ShortenUrl));
+        await SET_ASYNC(`${req.body.longUrl}`, JSON.stringify(result));
 
-        return res.status(201).send({ status: true, message: `Successfully Shorten the URL`, data: ShortenUrl, });
+        return res.status(201).send({ status: true, message: `Successfully Shorten the URL`, data: result });
 
     } catch (err) {
         res.status(500).send({ status: false, error: err.message });
