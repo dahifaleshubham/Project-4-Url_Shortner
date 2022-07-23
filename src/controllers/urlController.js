@@ -49,7 +49,7 @@ let longUrl = data.longUrl
 
         const parsedUrl=JSON.parse(cachedlongUrl)
 
-        if (parsedUrl) return res.status(200).send(parsedUrl);       /*Checking Data From Cache */
+        if (parsedUrl) return res.status(201).send(parsedUrl);       /*Checking Data From Cache */
         
         const checkLongUrl = await urlModel.findOne({ longUrl: req.body.longUrl }).select({ urlCode: 1, longUrl: 1, shortUrl: 1, _id: 0 }); /*Checking Data From urlModel */
 
@@ -60,12 +60,13 @@ let longUrl = data.longUrl
     }
 
         const urlCode = shortid.generate()
-        const baseUrl = "http://localhost:3000";
+        const baseUrl = "http://localhost:3000"; 
         const shortUrl = baseUrl + "/" + urlCode;  /*Concat base baseURL & URLcode*/
         let collection = {
           urlCode: urlCode,
           longUrl: longUrl,
           shortUrl: shortUrl
+          
       }
 
         const ShortenUrl = await urlModel.create(collection);
